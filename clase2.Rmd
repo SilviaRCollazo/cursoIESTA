@@ -1,0 +1,22 @@
+---
+title: "clase2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r simulacion, echo=TRUE}
+# si tiene agregada la opciòn, echo=FALSE para que no se vea el codigo
+N<-rpois(n=1,90)
+x<-runif(n=N,0,1)
+y<-runif(n=N,0,1)
+dat<-data.frame(x,y)
+# para correr y que te genere el html hay que apretar knit arriba
+library(knitr)
+kable(summary(dat))
+```
