@@ -1,0 +1,47 @@
+---
+title: "Tarea1:RMarkdown"
+author: "Silvia Rodríguez"
+date: "14 de septiembre de 2018"
+geometry: margin=3cm
+output:
+  pdf_document:
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introducción
+
+
+En el ejercicio de simulación se generan 90 puntos provenientes de una distribución Poisson $rpois(n=1,90)$ , luego se genera las variables *x* y *y* que provienen de una distribución uniforme (0,1), $runif(n=N,0,1)$.  
+
+El link a mi repositorio personal es:
+
+https://github.com/SilviaRCollazo
+
+# Simulaciones y tabla
+```{r simulacion, echo=TRUE, results='asis'}
+
+N<-rpois(n=1,90)
+x<-runif(n=N,0,1)
+y<-runif(n=N,0,1)
+dat<-data.frame(x,y)
+library(xtable)
+
+tabla<-xtable(summary(dat),caption="Resultados simulación", label="tab:Results")
+print(tabla,caption.placement="top", comment="FALSE")
+
+```
+
+En la Tabla \ref{tab:Results} se observa que la mediana de *x* es `r median(x)`
+
+
+# Figura
+
+```{r grafico, fig.cap="Grafico de dispersión" }
+
+plot(x,y)
+
+```
