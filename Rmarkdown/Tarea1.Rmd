@@ -19,7 +19,7 @@ En el ejercicio de simulación se generan 90 puntos provenientes de una distribu
 
 El link a mi repositorio personal es:
 
-https://github.com/SilviaRCollazo
+https://github.com/SilviaRCollazo/cursoIESTA
 
 # Simulaciones y tabla
 ```{r simulacion, echo=TRUE, results='asis'}
