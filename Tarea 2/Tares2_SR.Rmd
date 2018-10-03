@@ -1,0 +1,134 @@
+---
+title: "Tarea 2"
+author: "Silvia Rodríguez"
+date: "1 de octubre de 2018"
+output: pdf_document
+
+---
+
+# Ejercicio 1
+## Parte a)
+```{r Parte a_ej1, echo=TRUE, message=FALSE, warning=FALSE}
+
+gastolink <- 'https://catalogodatos.gub.uy/dataset/96e636e5-4f78-49a7-8e14-60e90173a0c0/resource/936ac9e6-b0f6-424a-9b53-ee408a91fd6f/download/datos_gastos-por-actos-mdicos-2016.csv'
+gastos <- read.csv(gastolink, header = TRUE, dec = ",",encoding="latin1")
+head(gastos)
+
+library(tidyverse)
+library(ggplot2)
+library(dbplyr)
+
+gastos %>%
+  filter(Prestador_departamento=="MONTEVIDEO") %>%
+  group_by(Prestacion) %>%
+  summarise(prestacion_n=n())%>%
+  filter(prestacion_n==max(prestacion_n))
+```
+La prestación con mayor cantidad de actos médicos realizados en Montevideo es PCI - Cateterismo izq. adultos, con 2514 casos.
+
+## Parte b)
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+gastos %>%
+  group_by(Departamento_residencia) %>%
+  summarise(prestacion_n2=n())%>%
+  mutate(prestacion_n2 =prestacion_n2)%>%
+  filter(prestacion_n2==min(prestacion_n2))
+
+head(gastos)
+```
+El deparamento con menor cantidad de actos médicos es Flores.
+
+## Parte c)
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+gastos %>%
+  group_by(Prestador_tipo)%>%
+  summarise(Prestador_tipo_n=n())%>%
+  filter(Prestador_tipo %in% c("ASSE","IAMC"))%>%
+    summarise(Prestador_A_I=sum(Prestador_tipo_n))
+```
+Los actos médicos prestados por ASSE e IAMC conjuntamente suman 22.978.
+
+## Parte d)
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+gastos %>%
+  group_by(Paciente)%>%
+  summarise(Pacientes=n_distinct(Paciente))%>%
+  nrow()
+
+```
+Para quedarse con los actos por paciente sin repetir el paciente uso el argumento n_distinct. En este caso hay 19911 pacientes.
+
+
+# Ejercicio 2
+
+## Parte a)
+```{r grafico2a, fig.cap="Proporción de actos médicos según departamento de residencia", echo=TRUE, message=FALSE, warning=FALSE}
+
+gastos %>%
+    mutate (prestacion=as.numeric(Prestacion))%>%
+    group_by(Departamento_residencia)%>%
+    summarise(prestacion=n())%>%
+    mutate(sum_prestaciones=sum(prestacion))%>%
+  mutate(ratio_prestaciones=prestacion/sum_prestaciones)%>%
+ggplot( aes(y=fct_reorder(Departamento_residencia,ratio_prestaciones), x= ratio_prestaciones))+
+geom_point() +
+  scale_x_continuous(name="Proporción de actos médicos")+
+  scale_y_discrete(name="Departamento de residencia")
+
+```
+
+## Parte b)
+
+```{r grafico2b, fig.cap="Gráfico de barras de la cantidad de médicos en Montevideo por tipo de Prestación", echo=TRUE, message=FALSE, warning=FALSE}
+
+gastos %>%
+  filter(Prestador_departamento =="MONTEVIDEO")%>%
+  group_by(Prestacion)%>%
+  ggplot( aes(fct_infreq(Prestacion)))+
+geom_bar() +
+   theme(axis.text=element_text(size=3) ,axis.text.x = element_text(angle = 90))+
+   scale_y_continuous(name="Total de actos médicos") +
+   scale_x_discrete(name="")
+```
+
+
+## Parte c)
+
+```{r grafico2c, fig.cap="Gráfico de barras apiladas al 100 de la cantidad de actos médicos en Montevideo por tipo de Prestación", echo=TRUE, message=FALSE, warning=FALSE}
+
+gastos %>%
+  mutate(recod=as.numeric(Prestador_tipo))%>%
+  mutate(recod2=ifelse(recod==1,1,0))%>%
+  ggplot( aes(x= fct_reorder(Prestacion,recod2, .fun=mean), fill=Prestador_tipo))+
+geom_bar(position="fill")+
+  coord_flip()+
+  theme(axis.text=element_text(size=3) ,axis.text.x = element_text(angle = 90), legend.position="bottom")+
+   scale_y_continuous(name="Proporción") +
+   scale_x_discrete(name="Tipo de prestación")
+
+```
+
+
+# Ejercicio 3
+## Parte a)
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+gastos %>%
+  filter(Prestador_departamento =="MONTEVIDEO")%>%
+  group_by(Prestador)%>%
+  summarise(actos=n())%>%
+  mutate(sum_actos=sum(actos))%>%
+  mutate(ratio_actos=round(actos/sum_actos, digits=2))%>%
+  arrange(Prestador,desc(ratio_actos))%>% 
+  head(n=10)%>%
+    ggplot(aes(x=Prestador, y=ratio_actos))+
+    geom_point() +
+  scale_y_continuous(name="Proporción de actos médicos")+
+  scale_x_discrete(name="Prestador")+
+theme(axis.text=element_text(size=8) ,axis.text.x = element_text(angle = 90))
+  
+ 
+```
