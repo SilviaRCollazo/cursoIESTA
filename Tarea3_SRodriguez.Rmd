@@ -1,0 +1,111 @@
+---
+title: "Tarea3"
+author: "Silvia Rodr?guez"
+date: "14 de noviembre de 2018"
+output: 
+  pdf_document: 
+    keep_tex: yes
+---
+
+# Ejercicio 1
+## Parte a)
+```{r Parte a_ej1, echo=TRUE, message=FALSE, warning=FALSE}
+
+
+library(rmarkdown)
+library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(tibble)
+
+
+genes<- read.table("//164.73.246.107/grupos/SERIES/SILVIA/Maestria_YO/Reproducibilidad/Tarea 3/datos_rna.txt", header=TRUE)
+
+genest<-as_tibble(genes) %>%
+  gather(key=nacho, value=silvia, -GeneID) %>%
+  separate(col=nacho , into= c("Rep","geno","bmtotal"),remove=TRUE) %>%
+  spread(key=bmtotal,value=silvia)
+
+```
+## Parte b
+No puedo hacer que s?lo grafique la recta de regresi?n que pase por la mayor nube de puntos correspondiente a geno=BM.
+```{r Parte b_ej1, echo=TRUE, message=FALSE, warning=FALSE}
+  
+library(ggplot2)
+
+genest %>% 
+  mutate(b1=b+1,m1=m+1) %>%
+  mutate (logb=log(b1)) %>%
+  mutate (logm=log(m1)) %>%
+  ggplot(aes(logm,logb, color=geno))+
+  geom_point(alpha=1/8)+
+  geom_smooth(method =lm, se=FALSE)+
+  facet_wrap(~ Rep)+
+  labs(x="Expresi?n g?nica de alelo m(en logs)", y = "Expresi?n g?nica de alelo b(en logs)" )+
+  theme(legend.position="right")
+
+```
+
+# Ejercicio 3
+Preliminares:
+```{r Parte ej3_prelim, echo=TRUE, message=FALSE, warning=FALSE}
+compara <- function(x, y) {
+  j <- length(x)
+  n <- length(y)
+  # calculo el estadistico de la prueba
+  sp <- sqrt(((j-1)*sd(x)^2 + (n-1)*sd(y)^2) / (j+n-2))
+  tstat <- (mean(x) - mean(y)) / (sp*sqrt(1/j + 1/n))
+  # calculo el p-valor
+  2*(1 - pt( abs(tstat), df = n+j-2) )
+}
+
+genest %>%
+   filter(geno == 'BM') %>% 
+    summarize(compara(b,m))
+ 
+  
+genest %>%
+  filter(geno == 'BM') %>% 
+    group_by(GeneID) %>%
+  summarize( pv=compara(b,m))%>%
+  ungroup()%>%
+  summarize(SS=sum(is.nan(pv)))
+
+```
+## Parte b
+Se espera concluir err?neamente, que la diferencia es significativa con $alpha=0.05 en 0.05*N=0.05*1363 =68.15
+
+## Parte c
+Creo la variable indicatriz "veo" que me indica cuando el pvalor es menor a 0.05 pera poder responder. Pero no puedo sumar esos unos.
+```{r Parte c ej3, echo=TRUE, message=FALSE, warning=FALSE}
+genest %>%
+  filter(geno == 'BM') %>% 
+    group_by(GeneID) %>%
+  summarize( pv=compara(b,m))%>%
+  arrange(desc(pv))
+
+genest %>%
+  filter(geno == 'BM') %>% 
+    group_by(GeneID) %>%
+  summarize( pv=compara(b,m))%>%
+  arrange(pv) %>%
+  mutate(veo=if_else(pv<0.05,1,0, missing=NULL))
+  #summarise(n=n()) %>%
+  #mutate(prop=n/sum(veo))
+ 
+
+```
+## Parte d
+Creo la variable indicatriz "veo_nuevop" que me indica cuando el pvalor ajustado es menor a 0.05 pera poder responder. Pero no puedo sumar esos unos.
+```{r Parte d ej3, echo=TRUE, message=FALSE, warning=FALSE}
+
+genest %>%
+  filter(geno == 'BM') %>% 
+    group_by(GeneID) %>%
+  summarize(pv=compara(b,m)) %>%
+  arrange(pv) %>%
+  mutate(nuevo_p = p.adjust(pv, method="bonferroni")) %>%
+  mutate(veo_nuevop=if_else(nuevo_p<0.05,1,0, missing=NULL)) 
+  #summarise(n2=n()) %>%
+   # mutate(prop2=n2/sum(veo))
+```
