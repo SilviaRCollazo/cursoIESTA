@@ -1,0 +1,149 @@
+---
+title: "Probando2"
+author: "Silvia Rodr?guez Collazo"
+date: "6 de diciembre de 2018"
+output: html_document
+runtime: shiny
+---
+
+# Introducci?n
+
+La estimaci?n y c?lculo de los indicadores que son parte de las Cuentas Nacionales se realizan a partir de datos que provienen de distintas fuentes, censos econ?micos, registros administrativos, informaci?n contable, encuestas por muestreo, entre otras.
+
+El Banco Central del Uruguay (BCU) realiza revisiones peri?dicas en los datos, las m?s importantes en cuanto a magnitud se dan en el ?ltimo trimestre del a?o cuando se actualiza la informaci?n que se obtiene anualmente.
+
+En el an?lisis de coyuntura, el momento en que se recibe la nueva informaci?n de cuentas nacionales es importante poder conformar un primer panorama de la trayectoria de las series , la nueva informaci?n incorporada por los nuevos datos y si estas novedades implican granden cambios en las series a analizar.
+
+Se ha analizado los efectos de las revisiones tanto a nivel de las predicciones de la trayectoria futura como en las estimaciones del componente m?s estable de la serie, la tendencia.
+
+En este trabajo se crea una aplicaci?n shiny cuyo objetivo es apoyar la primer etapa de an?lisis de la inueva informaci?n que publica el Banco Central en oportunidad de dar a conocer las cifras del ?ndice de Volumen F?sico de Producto, agregado y algunos de sus componentes.
+
+La utilidad de este proyecto de aplicaci?n debe enetenderse en el marco de un an?lisis de coyuntura y cuyo objetivo preliminar es permitir al analista obtener una aproximaci?n a las novedades que trae la nueva informaci?n, enfoc?ndose sobre todo a las revisiones en los datos.
+
+Por otro lado un segundo objetivo es poner a disposici?n del ususario y del analista un conjunto de "vintages", esto es de una base de datos con las ultimas series publicadas por el BCU.Esta disponibilidad inmediata en s? misma es de gran utilidad pues no hay una base oficial de "vintages" disponibles en la web del BCU.
+
+## Desarrollo de la aplicaci?n
+
+Este proyecto es una primer aproximaci?n al desarrollo de esta aplicaci?n. Por tanto lo que tiene que ver con un proceso repetitivo, el referido al ana?lisis de los datos de los IVF del PIB sectorial no se realizar?n para cada componente del producto desagregado por sector sino en esta etapa a un conjunto de sectores, agro e industria adem?s del IVF del PIB agregado.
+
+Se leen los datos de una base que se alimenta en cada oportunidad, esto es, aproximadamente 45 d?as despues de vencido el trimestre el BCU publica en la web la nueva informaci?n, en este caso la base se elabora tomando la informaci?n que se publica en el Cuadro 132t.xls, esto es las series de IVF del PIB por industrias, base 2005=100, serie armonizada.
+
+En base a esta informaci?n se desagrega en un conjunto de archivos, uno para el IVF del PIB agregado y otros dos para cada sector. Adicionalmente se crea un archivo que calcula las tasas de crecimiento promedio anual desde el a?o 2010 a 2017 ( ultimo a?o completo del que se disponen datos) y con ello se elabora una tabla que contiene esas tasas de crecimiento para cada "vintage". El objetivo de esta taba es analizar si las revisiones han afectado las tasas de crecimiento del pasado. La relevancia que tiene esta informaci?n es que permite revisar la visi?n que los analistas ten?an sobre el nivel de actividad econ?mica del pa?s en el pasado.
+
+```{r Desarrollo,  echo=FALSE, message=FALSE, warning=FALSE}
+#knitr::opts_chunk$set(echo = FALSE)
+
+
+library(shiny)
+
+ui <- navbarPage("PIB por industrias", fluid = TRUE,
+  #titlePanel("PIB,Revisiones y Tendencia"),
+      tabPanel("PIB",
+        sidebarLayout(
+        sidebarPanel("Consultar PIB", 
+                selectInput(inputId="accion",
+                            label="Elija una serie:",
+                            choices= c("IVF_PIB_1T_17","IVF_PIB_2T_17","IVF_PIB_3T_17","IVF_PIB_4T_17","IVF_PIB_1T_18","IVF_PIB_2T_18")),
+                checkboxInput("logs",
+                               "Transformaci?n logar?tmica",
+                               value=FALSE),
+                checkboxInput("x13",
+                               "Componente Tendencial (X13-SEATS)",
+                               value=FALSE)),
+        
+  mainPanel(" IVF del PIB de Uruguay y sus revisiones",
+            h1('Gr?fico del PIB'),
+      plotOutput('grafico_pib'),
+      h2('Tasas de crecimiento interanual'),
+      tableOutput("tabla_pib")
+      )
+  )
+),
+
+tabPanel("PIB del Agro",
+         sidebarLayout(
+    sidebarPanel("Consultar PIB AGRO", 
+                selectInput(inputId="accion",
+                            label="Elija una serie:",
+                            choices= c("AGRO_1T_17","AGRO_2T_17","AGRO_3T_17","AGRO_4T_17","AGRO_1T_18","AGRO_2T_18")),
+                checkboxInput("logs",
+                               "Transformaci?n logar?tmica",
+                               value=FALSE),
+                checkboxInput("x13",
+                               "Componente Tendencial (X13-SEATS)",
+                               value=FALSE)),
+        
+  mainPanel(" IVF del PIB del Agro y sus revisiones",
+            h1('Gr?fico del PIB AGRO'),
+      plotOutput('grafico_agro'),
+      h2('Tasas de crecimiento interanual'),
+      tableOutput("tabla_agro")
+      )
+  )
+)
+) # cierra ui
+
+server <- function(input, output)
+  {
+  output$grafico_pib<-renderPlot({
+    pib_uy <- read.csv("pib_uy.csv", sep=";",dec=',')
+    y_pib<-pib_uy[,input$accion]
+    y_pib<-y_pib[!is.na(y_pib)]
+    y_pib<-ts(y_pib,frequency=4,start=c(1997,1))
+    eje_y<-input$accion
+    if(input$logs) {
+      y_pib<-log(y_pib)
+      eje_y<-paste('log(',eje_y,')',sep='')
+    }
+        plot(y_pib,type='l',ylab=eje_y,xlab='trimestres', sub="Fuente:Elaboraci?n propia en base a BCU")
+    if(input$x13) {
+      library(seasonal)
+      x13_pib<-seas(y_pib,transform.function='none')
+      # tendencia
+      lines(x13_pib$data[,'trend'],col='red',lwd=2)
+      # seasonal
+      #lines(x13$data[,'seasonaladj'],col='green',lwd=2)
+      legend('topleft',c('serie','tendencia'),col=c(1,2),lwd=c(1,2),bty='n')
+    }
+  }) 
+  
+  tasa_pib <- read.csv("Tasa_crecimiento.csv", sep=";",dec=',')
+  
+  output$tabla_pib<-renderTable(
+    tasa_pib, striped=FALSE,hover=FALSE, bordered=FALSE,spacing="s", width="auto",align="c", rownames=FALSE,colnames=TRUE, digits=1
+  )
+
+output$grafico_agro<-renderPlot({
+    agro <- read.csv("AGRO.csv", sep=";",dec=',')
+    y_agro<-agro[,input$accion]
+    y_agro<-y_agro[!is.na(y_agro)]
+    y_agro<-ts(y_agro,frequency=4,start=c(1997,1))
+    eje_y<-input$accion
+    if(input$logs) {
+      y_agro<-log(y_agro)
+      eje_y<-paste('log(',eje_y,')',sep='')
+    }
+        plot(y_agro,type='l',ylab=eje_y,xlab='trimestres')
+    if(input$x13) {
+      library(seasonal)
+      x13_agro<-seas(y_agro,transform.function='none')
+      # tendencia
+      lines(x13_agro$data[,'trend'],col='red',lwd=2)
+      # seasonal
+      #lines(x13$data[,'seasonaladj'],col='green',lwd=2)
+      legend('topleft',c('serie','tendencia'),col=c(1,2),lwd=c(1,2),bty='n')
+    }
+  })
+  
+tasa_pib_agro <- read.csv("Tasa_crecimiento_agro.csv", sep=";",dec=',')
+  output$tabla_agro<-renderTable(
+    tasa_pib_agro, striped=FALSE,hover=FALSE, bordered=FALSE,spacing="s", width="auto",align="c", rownames=FALSE,colnames=TRUE, digits=1
+  )
+
+}# cierra server
+
+  shinyApp(ui = ui, server = server)
+
+
+```
+
