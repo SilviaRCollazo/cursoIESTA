@@ -1,0 +1,221 @@
+---
+title: "Informe del Proyecto Final del curso de Investigación Reproducible"
+author: "Silvia Rodríguez Collazo"
+date: "13 de diciembre de 2018"
+output: html_document
+runtime: shiny
+---
+
+# Introducción
+
+La estimación y cálculo de los indicadores que son parte de las Cuentas Nacionales se realizan a partir de datos que provienen de distintas fuentes, censos económicos, registros administrativos, información contable, encuestas por muestreo, entre otras.
+
+El Banco Central del Uruguay (BCU) realiza revisiones periódicas en los datos, las más importantes en cuanto a magnitud se dan en el último trimestre del año cuando se actualiza la información que se obtiene anualmente.
+
+En el análisis de coyuntura, el momento en que se recibe la nueva información de cuentas nacionales es importante poder conformar un primer panorama de la trayectoria de las series , la nueva información incorporada por los nuevos datos y si estas novedades implican granden cambios en las series a analizar.
+
+En Rodríguez - Collazo,S. (2016) se ha analizado los efectos de las revisiones tanto a nivel de las predicciones de la trayectoria futura como en las estimaciones del componente más estable de la serie, la tendencia.
+
+
+En este trabajo se crea una aplicación shiny cuyo objetivo es apoyar la primer etapa de análisis de la inueva información que publica el Banco Central en oportunidad de dar a conocer las cifras del Índice de Volumen Físico de Producto agregado y algunos de sus componentes.
+
+La utilidad de este proyecto de aplicación debe enetenderse en el marco de un análisis de coyuntura y cuyo objetivo preliminar es permitir al analista obtener una aproximación a las novedades que trae la nueva información, enfocándose sobre todo a las revisiones en los datos.
+
+Un segundo objetivo es poner a disposición del ususario y del analista un conjunto de *"vintages"*, esto es de una base de datos con las ultimas series publicadas por el BCU. Esta disponibilidad en sí misma es de gran utilidad pues no hay una base oficial de *"vintages"* disponibles en la web del BCU.
+
+Finalmente crear un informe interactivo en el que se pueda reportar los resultados de este ejercicio y se mantenga la interactividad de la propia aplicación.
+
+## En qué consiste la aplicación
+
+### IVF del PIB de Uruguay 
+
+Este proyecto es una primer aproximación al desarrollo de esta aplicación. Por tanto lo que tiene que ver con un proceso repetitivo, el referido al análisis de los datos de los IVF del PIB sectorial no se realizarán para cada componente del producto desagregado por sector sino en esta etapa a un conjunto de sectores, agro e industria además del IVF del PIB agregado.
+
+Se leen los datos de una base que se alimenta en cada oportunidad, esto es, aproximadamente 45 días despues de vencido el trimestre, el BCU publica en la web la nueva información, en este caso la base se elabora tomando la información que se publica en el Cuadro 132t.xls, esto es las series de IVF del PIB por industrias, base 2005=100, serie armonizada.
+
+En base a esta información se crean varios archivos, uno para el IVF del PIB agregado y otros (dos, en este ejercicio) para cada sector, agro e industria. Adicionalmente se crea un archivo que calcula las tasas de crecimiento promedio anual desde el año 2010 a 2017 ( ultimo año completo del que se disponen datos) y con ello se elabora una tabla  que contiene esas tasas de crecimiento para cada *"vintage"*. El objetivo de esta tabla es analizar si las revisiones han afectado las tasas de crecimiento del pasado.La visualización de la información se realiza en dos objetos, un gráfico que muestra la evolución de la serie y del componente tendencia de la serie estimado mediante la aplicación de la metodología X13-SEATS que está contentida en el paquete seas del R.
+
+Por tanto la visualización incluye dos niveles, uno de corto plazo que se observa en el gráfico y de mediano plazo, la contenida en la tabla.
+La relevancia que tiene la información contenida en la tabla es que permite revisar la visión que los analistas tenían sobre el nivel de actividad económica del país en el pasado.
+
+```{r Desarrollo,  echo=FALSE, message=FALSE, warning=FALSE}
+#knitr::opts_chunk$set(echo = FALSE)
+
+
+library(shiny)
+
+ui <- navbarPage("PIB por industrias", fluid = TRUE,
+  #titlePanel("PIB,Revisiones y Tendencia"),
+      tabPanel("PIB",
+        sidebarLayout(
+        sidebarPanel("Consultar PIB", 
+                selectInput(inputId="accion",
+                            label="Elija una serie:",
+                            choices= c("IVF_PIB_1T_17","IVF_PIB_2T_17","IVF_PIB_3T_17","IVF_PIB_4T_17","IVF_PIB_1T_18","IVF_PIB_2T_18")),
+                checkboxInput("logs",
+                               "Transformación logarítmica",
+                               value=FALSE),
+                checkboxInput("x13",
+                               "Componente Tendencial (X13-SEATS)",
+                               value=FALSE)),
+        
+  mainPanel(" IVF del PIB de Uruguay y sus revisiones",
+            h1('Gráfico del PIB'),
+      plotOutput('grafico_pib'),
+      h2('Tasas de crecimiento interanual'),
+      tableOutput("tabla_pib")
+      )
+  )
+),
+
+tabPanel("PIB del Agro",
+         sidebarLayout(
+    sidebarPanel("Consultar PIB AGRO", 
+                selectInput(inputId="accion1",
+                            label="Elija una serie:",
+                            choices= c("AGRO_1T_17","AGRO_2T_17","AGRO_3T_17","AGRO_4T_17","AGRO_1T_18","AGRO_2T_18")),
+                checkboxInput("logs_Agro",
+                               "Transformación logarítmica",
+                               value=FALSE),
+                checkboxInput("x13_Agro",
+                               "Componente Tendencial (X13-SEATS)",
+                               value=FALSE)),
+        
+  mainPanel(" IVF del PIB del Agro y sus revisiones",
+            h1('Gráfico del PIB AGRO'),
+      plotOutput('grafico_agro'),
+      h2('Tasas de crecimiento interanual'),
+      tableOutput("tabla_agro")
+      )
+  )
+),
+
+ tabPanel("PIB de la Industria"),
+  sidebarLayout(
+    sidebarPanel("Consultar PIB IND", 
+                selectInput(inputId="accion2",
+                            label="Elija una serie:",
+                            choices= c("IND_1T_17","IND_2T_17","IND_3T_17","IND_4T_17","IND_1T_18","IND_2T_18")),
+                checkboxInput("logs_ind",
+                               "Transformación logarítmica",
+                               value=FALSE),
+                checkboxInput("x13_ind",
+                               "Componente Tendencial (X13-SEATS)",
+                               value=FALSE)),
+        
+  mainPanel(" IVF del PIB de  la Industria y sus revisiones",
+            h1('Gráfico del PIB IND'),
+      plotOutput('grafico_ind'),
+      h2('Tasas de crecimiento interanual'),
+      tableOutput("tabla_ind")
+      )
+  )
+) # cierra ui
+
+server <- function(input, output)
+  {
+  output$grafico_pib<-renderPlot({
+    pib_uy <- read.csv("pib_uy.csv", sep=";",dec=',')
+    y_pib<-pib_uy[,input$accion]
+    y_pib<-y_pib[!is.na(y_pib)]
+    y_pib<-ts(y_pib,frequency=4,start=c(1997,1))
+    eje_y<-input$accion
+    if(input$logs) {
+      y_pib<-log(y_pib)
+      eje_y<-paste('log(',eje_y,')',sep='')
+    }
+        plot(y_pib,type='l',ylab=eje_y,xlab='trimestres', sub="Fuente:Elaboraci?n propia en base a BCU")
+    if(input$x13) {
+      library(seasonal)
+      x13_pib<-seas(y_pib,transform.function='none')
+      # tendencia
+      lines(x13_pib$data[,'trend'],col='red',lwd=2)
+      # seasonal
+      #lines(x13$data[,'seasonaladj'],col='green',lwd=2)
+      legend('topleft',c('serie','tendencia'),col=c(1,2),lwd=c(1,2),bty='n')
+    }
+  }) 
+  
+  tasa_pib <- read.csv("Tasa_crecimiento.csv", sep=";",dec=',')
+  
+  output$tabla_pib<-renderTable(
+    tasa_pib, striped=FALSE,hover=FALSE, bordered=FALSE,spacing="s", width="auto",align="c", rownames=FALSE,colnames=TRUE, digits=1
+  )
+
+output$grafico_agro<-renderPlot({
+    agro <- read.csv("AGRO.csv", sep=";",dec=',')
+    y_agro<-agro[,input$accion1]
+    y_agro<-y_agro[!is.na(y_agro)]
+    y_agro<-ts(y_agro,frequency=4,start=c(1997,1))
+    eje_y<-input$accion1
+    if(input$logs_Agro) {
+      y_agro<-log(y_agro)
+      eje_y<-paste('log(',eje_y,')',sep='')
+    }
+        plot(y_agro,type='l',ylab=eje_y,xlab='trimestres')
+    if(input$x13_Agro) {
+      library(seasonal)
+      x13_agro<-seas(y_agro,transform.function='none')
+      # tendencia
+      lines(x13_agro$data[,'trend'],col='red',lwd=2)
+      # seasonal
+      #lines(x13$data[,'seasonaladj'],col='green',lwd=2)
+      legend('topleft',c('serie','tendencia'),col=c(1,2),lwd=c(1,2),bty='n')
+    }
+  })
+  
+tasa_pib_agro <- read.csv("Tasa_crecimiento_agro.csv", sep=";",dec=',')
+  output$tabla_agro<-renderTable(
+    tasa_pib_agro, striped=FALSE,hover=FALSE, bordered=FALSE,spacing="s", width="auto",align="c", rownames=FALSE,colnames=TRUE, digits=1
+  )
+
+  output$grafico_ind<-renderPlot({
+    ind <- read.csv("IND.csv", sep=";",dec=',')
+    y_ind<-ind[,input$accion2]
+    y_ind<-y_ind[!is.na(y_ind)]
+    y_ind<-ts(y_ind,frequency=4,start=c(1997,1))
+    eje_y<-input$accion2
+    if(input$logs_ind) {
+      y_ind<-log(y_ind)
+      eje_y<-paste('log(',eje_y,')',sep='')
+    }
+        plot(y_ind,type='l',ylab=eje_y,xlab='trimestres')
+    if(input$x13_ind) {
+      library(seasonal)
+      x13_ind<-seas(y_ind,transform.function='none')
+      # tendencia
+      lines(x13_ind$data[,'trend'],col='red',lwd=2)
+      # seasonal
+      #lines(x13$data[,'seasonaladj'],col='green',lwd=2)
+      legend('topleft',c('serie','tendencia'),col=c(1,2),lwd=c(1,2),bty='n')
+    }
+  })
+  tasa_pib_ind <- read.csv("Tasa_crecimiento_ind.csv", sep=";",dec=',')
+  output$tabla_ind<-renderTable(
+    tasa_pib_ind, striped=FALSE,hover=FALSE, bordered=FALSE,spacing="s", width="auto",align="c", rownames=FALSE,colnames=TRUE, digits=1
+  )
+}# cierra server
+
+  shinyApp(ui = ui, server = server)
+
+
+```
+
+### Grado de dificultad del problema a resolver
+
+En este caso las dificultades abarcaron los siguientes puntos:
+
+a) La construcción de un informe interactivo, esto es que el reporte del proyecto pudera mantener la reactividad que tiene la aplicación y que no fueran dos objetos separados.
+
+b) Aunque es muy sencilla, la creación de la aplicación fue la más desafiante.El propósito es mostrar en un solo panel con deversas pestañas la información que se desea visualizar. Permitir seleccionar las series de la base, observar su representación gráfica y a su vez acceder a otra forma de resumen de otra información vinculada a la primera, pero que no es de carácter interactivo, sino que es una tabla estática. Esta tabla se modifica básicamente en oportunidad de incluir un nuevo año calendario completo, por lo cual dada su lentitud en actualizarse no requería el carácter interactivo, que sí es necesario en el gráfico.
+En este punto puedo ordenar el grado de dificultad que me significaron las diversas etapas: primeramente conseguir que se visualizara la información en pestañas mediante el uso del TabPanel, en segundo término el inicio, conseguir que se leyeran las series y se pudiera realizar la descomposición en la aplicación y en ultimo término la creación del informe.
+
+## Desafíos a posteriori del curso
+
+Quedan por hacer diversas mejoras a la aplicación, alguans de las cuales paso a listar:
+
+i) Mejorar las gráficas incorporando el uso de ggplot considerando que se requieren para ello data frame y para hacer el proceso de estiamción de la tendencia, el paquete seas requiere que tengan un formato de series de tiempo, por lo que previo a la lectura de los datos con formato data frame para la primer gráfica sería ncesario convertirlos en ts y luego nuevamente a data frame para que se incorporen en la misma gráfica.
+
+ii) Incorporar las predicciones que provienen del modelo automático del X13-SEAST que se corre en el paquete seas. Incorporándo esta información en forma gráfica y en una tabla.
+
+iii) Incoporar en forma gráfica las tendnecias estimadas, conjuntamente con cada vintage habiendo incorporado la predicción. Pero esto en principio no veo cómo hacerlo "reactivo".
